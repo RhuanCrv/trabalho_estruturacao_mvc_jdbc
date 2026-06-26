@@ -1,35 +1,43 @@
 # trabalho_estruturacao_mvc_jdbc
 
-# Cenário 2 — Sistema de Oficina Mecânica
+# Sistema de Oficina Mecânica (Cenário 2)
 
-## Tabelas Identificadas
+Este projeto consiste numa aplicação Java desenvolvida utilizando a arquitetura **MVC (Model-View-Controller)** e persistência de dados com **JDBC** no banco de dados **PostgreSQL**. A aplicação simula o fluxo operacional de uma oficina mecânica, gerindo clientes, veículos e ordens de serviço através de um menu interativo no terminal.
 
-### cliente
-| Campo    | Tipo         | Restrição |
-|----------|--------------|-----------|
-| id       | SERIAL       | PK        |
-| nome     | VARCHAR(100) | NOT NULL  |
-| telefone | VARCHAR(20)  | NOT NULL  |
+---
 
-### veiculo
-| Campo      | Tipo         | Restrição                  |
-|------------|--------------|----------------------------|
-| id         | SERIAL       | PK                         |
-| placa      | VARCHAR(10)  | NOT NULL, UNIQUE           |
-| modelo     | VARCHAR(100) | NOT NULL                   |
-| ano        | INTEGER      | NOT NULL                   |
-| id_cliente | INTEGER      | FK → cliente(id) NOT NULL  |
+## 📊 1. Modelação da Base de Dados
 
-### ordem_servico
-| Campo     | Tipo          | Restrição                 |
-|-----------|---------------|---------------------------|
-| id        | SERIAL        | PK                        |
-| id_veiculo| INTEGER       | FK → veiculo(id) NOT NULL |
-| descricao | TEXT          | NOT NULL                  |
-| valor     | NUMERIC(10,2) | NOT NULL, CHECK >= 0      |
-| status    | VARCHAR(20)   | NOT NULL DEFAULT 'ABERTA' |
+O sistema é composto por três tabelas principais fortemente relacionadas:
 
-## Script SQL (CREATE TABLE)
+### 👤 Tabela: `cliente`
+| Campo | Tipo | Restrição | Descrição |
+| :--- | :--- | :--- | :--- |
+| **id** | SERIAL | PRIMARY KEY | Identificador único do cliente |
+| **nome** | VARCHAR(100) | NOT NULL | Nome completo do cliente |
+| **telefone** | VARCHAR(20) | NOT NULL | Telefone de contacto |
+
+### 🚗 Tabela: `veiculo`
+| Campo | Tipo | Restrição | Descrição |
+| :--- | :--- | :--- | :--- |
+| **id** | SERIAL | PRIMARY KEY | Identificador único do veículo |
+| **placa** | VARCHAR(10) | NOT NULL, UNIQUE | Matrícula/Placa única do veículo |
+| **modelo** | VARCHAR(100) | NOT NULL | Modelo do carro (ex: Fiat Uno) |
+| **ano** | INTEGER | NOT NULL | Ano de fabrico |
+| **id_cliente** | INTEGER | FK → `cliente(id)`, NOT NULL | Proprietário do veículo |
+
+### 🛠️ Tabela: `ordem_servico`
+| Campo | Tipo | Restrição | Descrição |
+| :--- | :--- | :--- | :--- |
+| **id** | SERIAL | PRIMARY KEY | Identificador único da OS |
+| **id_veiculo** | INTEGER | FK → `veiculo(id)`, NOT NULL | Veículo associado à OS |
+| **descricao** | TEXT | NOT NULL | Detalhes do serviço a ser feito |
+| **valor** | NUMERIC(10,2) | NOT NULL, CHECK (valor >= 0) | Custo total do serviço |
+| **status** | VARCHAR(20) | NOT NULL, DEFAULT 'ABERTA' | Estado atual (`ABERTA` ou `CONCLUIDA`) |
+
+---
+
+## 🛠️ 2. Script de Criação SQL (DDL)
 
 ```sql
 CREATE TABLE cliente (
@@ -58,22 +66,30 @@ CREATE TABLE ordem_servico (
     CONSTRAINT chk_os_status CHECK (status IN ('ABERTA', 'CONCLUIDA'))
 );
 
-Regras de Negócio
-Um cliente precisa ter pelo menos nome e telefone cadastrados.
-Um veículo só pode ser cadastrado se o cliente já existir no sistema.
-Um cliente pode ter múltiplos veículos vinculados a ele.
-Uma ordem de serviço só pode ser aberta para veículos já cadastrados.
-O valor do serviço não pode ser negativo (deve ser >= 0).
-Uma ordem de serviço tem status inicial "ABERTA" e pode ser atualizada para "CONCLUIDA".
-O sistema deve permitir consultar todo o histórico de manutenções de um veículo.
-
----
-
-### 3.2 — Mapa da Arquitetura (Cenário 2)
-
-
-model/ Cliente.java ← id, nome, telefone Veiculo.java ← id, placa, modelo, ano, idCliente OrdemServico.java ← id, idVeiculo, descricao, valor (BigDecimal), status
-repository/ ClienteRepository.java ← CRUD completo VeiculoRepository.java ← CRUD + findByClienteId OrdemServicoRepository.java ← CRUD + findByVeiculoId
-service/ ClienteService.java ← valida dados VeiculoService.java ← verifica se cliente existe OrdemServicoService.java ← verifica veículo + valida valor + valida status
-controller/ ClienteController.java VeiculoController.java OrdemServicoController.java
-
+```
+br.edu.faculdade/
+│
+├── 📦 model/            # Classes de Entidade (Representação das tabelas do banco)
+│   ├── Cliente.java             <- Atributos: id, nome, telefone
+│   ├── Veiculo.java             <- Atributos: id, placa, modelo, ano, idCliente
+│   └── OrdemServico.java        <- Atributos: id, idVeiculo, descricao, valor, status
+│
+├── 📦 repository/       # Camada DAO/Repository (Consultas SQL brutas via JDBC)
+│   ├── ClienteRepository.java      <- Salvar cliente e geração de ID automático
+│   ├── VeiculoRepository.java      <- Salvar veículo e buscar por ID
+│   └── OrdemServicoRepository.java <- CRUD Completo + Busca de histórico por veículo
+│
+├── 📦 service/          # Camada de Negócio (Onde as regras e validações acontecem)
+│   ├── ClienteService.java         <- Valida dados obrigatórios do cliente
+│   ├── VeiculoService.java         <- Verifica integridade do proprietário
+│   └── OrdemServicoService.java     <- Valida regras de valores negativos e status da OS
+│
+├── 📦 controller/       # Orquestradores (Intermédio entre o Menu View e os Serviços)
+│   ├── ClienteController.java
+│   ├── VeiculoController.java
+│   └── OrdemServicoController.java
+│
+├── 📦 util/             # Utilitários de Infraestrutura
+│   └── Conexao.java                <- Criação e gestão da conexão JDBC com o PostgreSQL
+│
+└── 🚀 Main.java         # Ponto de entrada (Interface interativa com Scanner para o usuário)
